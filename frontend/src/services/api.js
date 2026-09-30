@@ -106,6 +106,18 @@ export const api = {
     return res.data;
   },
 
+    // Interview Preparation
+  generateInterviewPrep: async ({ resumeId, resumeData, jdText }) => {
+    const payload = {
+      resume_id: resumeId || null,
+      resume_data: resumeData || null,
+      jd_text: jdText,
+    };
+
+    const res = await apiClient.post('/interview-prep', payload);
+    return res.data;
+  },
+
   // History
   getHistory: async () => {
     const res = await apiClient.get('/history');
@@ -118,4 +130,6 @@ export const api = {
   },
 };
 
+console.log("API MODULE LOADED:", Object.keys(api));
+console.log("INTERVIEW PREP METHOD:", typeof api.generateInterviewPrep);
 export default api;
