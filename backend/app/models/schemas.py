@@ -154,3 +154,17 @@ class BulletImprovementResponse(BaseModel):
 class ResumeUpdateRequest(BaseModel):
     title: Optional[str] = None
     structured_data: ResumeSchema
+
+
+class JDScrapeRequest(BaseModel):
+    url: str = Field(..., description="Public job posting URL to scrape (e.g. Greenhouse, Lever, LinkedIn, etc.)")
+
+
+class JDScrapeResponse(BaseModel):
+    url: str
+    title: Optional[str] = None
+    company: Optional[str] = None
+    jd_text: str
+    word_count: int
+    source: Optional[str] = None
+

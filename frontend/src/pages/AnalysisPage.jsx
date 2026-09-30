@@ -24,7 +24,9 @@ import {
   AlertTriangle, 
   Zap,
   Target,
-  Upload
+  Upload,
+  Link2,
+  Globe
 } from 'lucide-react';
 
 const SAMPLE_JDS = [
@@ -91,6 +93,33 @@ export default function AnalysisPage() {
   const [jdText, setJdText] = useState(currentJd || '');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('classic_ats');
+  const [jobUrl, setJobUrl] = useState('');
+  const [isScrapingUrl, setIsScrapingUrl] = useState(false);
+  const [scrapedMeta, setScrapedMeta] = useState(null);
+
+  const handleFetchJdFromUrl = async () => {
+    if (!jobUrl.trim()) {
+      addToast('Please enter a job posting URL (e.g. Greenhouse, Lever, LinkedIn).', 'warning');
+      return;
+    }
+    setIsScrapingUrl(true);
+    setScrapedMeta(null);
+    try {
+      const data = await api.scrapeJobDescription(jobUrl.trim());
+      setJdText(data.jd_text);
+      setCurrentJd(data.jd_text);
+      setScrapedMeta(data);
+      addToast(
+        `Extracted ${data.word_count} words${data.title ? ` for "${data.title}"` : ''}!`,
+        'success'
+      );
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to fetch job description';
+      addToast(`Scraper error: ${msg}`, 'error');
+    } finally {
+      setIsScrapingUrl(false);
+    }
+  };
 
   // Auto-refresh baseline score if resume is present but base score is missing
   useEffect(() => {
@@ -262,6 +291,72 @@ export default function AnalysisPage() {
               <span>Target Job Description Requirements</span>
             </span>
             <span>Active Resume: <strong className="text-slate-200">{currentResume?.data?.name || 'Resume'}</strong></span>
+          </div>
+
+          {/* Auto-Fetch from Job URL */}
+          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+              <span className="font-semibold text-indigo-300 flex items-center space-x-1.5">
+                <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Auto-Fetch from Job URL</span>
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Supports Greenhouse, Lever, Ashby, LinkedIn, Indeed & Careers pages
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative flex-1 w-full">
+                <Globe className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="url"
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleFetchJdFromUrl(); }}
+                  placeholder="Paste job posting link (e.g. https://boards.greenhouse.io/... or https://jobs.lever.co/...)"
+                  className="w-full bg-slate-950/90 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-hidden focus:border-indigo-500 transition-all font-mono"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleFetchJdFromUrl}
+                disabled={isScrapingUrl || !jobUrl.trim()}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors shrink-0 shadow-xs"
+              >
+                {isScrapingUrl ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Extracting JD...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Fetch JD</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {scrapedMeta && (
+              <div className="flex items-center justify-between text-[11px] text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                <span className="flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>
+                    Auto-extracted {scrapedMeta.word_count} words
+                    {scrapedMeta.title ? ` • ${scrapedMeta.title}` : ''}
+                    {scrapedMeta.company ? ` at ${scrapedMeta.company}` : ''}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setScrapedMeta(null)}
+                  className="text-slate-400 hover:text-white px-1 font-bold"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
           </div>
 
           <textarea

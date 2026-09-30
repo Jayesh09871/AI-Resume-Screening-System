@@ -106,6 +106,11 @@ export const api = {
     return res.data;
   },
 
+  scrapeJobDescription: async (url) => {
+    const res = await apiClient.post('/scrape-jd', { url });
+    return res.data;
+  },
+
    // Interview Preparation
 generateInterviewPrep: async (payload) => {
     const response = await apiClient.post(

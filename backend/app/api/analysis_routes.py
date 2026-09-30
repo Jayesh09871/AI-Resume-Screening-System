@@ -10,8 +10,11 @@ from backend.app.models.schemas import (
     ResumeSchema,
     BulletImprovementRequest,
     BulletImprovementResponse,
+    JDScrapeRequest,
+    JDScrapeResponse,
 )
 from backend.app.services.jd_extractor import JobDescriptionExtractor
+from backend.app.services.jd_scraper import JobDescriptionScraper, JDScraperError
 from backend.app.services.ats_scorer import ATSScorer
 from backend.app.services.recommendation_engine import RecommendationEngine
 from backend.app.services.linguistic_analyzer import LinguisticAnalyzer
@@ -155,3 +158,24 @@ def get_analysis_by_id(analysis_id: int, db: Session = Depends(get_db)):
         suggestions=db_analysis.suggestions,
         created_at=db_analysis.created_at.isoformat(),
     )
+
+
+@router.post("/scrape-jd", response_model=JDScrapeResponse)
+@router.post("/jd/scrape", response_model=JDScrapeResponse)
+def scrape_job_description(payload: JDScrapeRequest):
+    """
+    Auto-fetch and extract a job description from a public URL (Greenhouse, Lever, LinkedIn, etc.).
+    Extracts job title, company, and clean plaintext job description without HTML or boilerplate.
+    """
+    try:
+        scraped_data = JobDescriptionScraper.scrape(payload.url)
+        return JDScrapeResponse(**scraped_data)
+    except JDScraperError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error scraping JD from {payload.url}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while scraping the job description: {str(e)}"
+        )
+

@@ -64,3 +64,78 @@ def test_job_description_extraction(sample_jd_text):
     assert "Python" in jd.required_skills or "PostgreSQL" in jd.required_skills
     assert len(jd.responsibilities) > 0
     assert len(jd.experience_requirements) > 0
+
+
+def test_jd_scraper_ssrf_and_validation():
+    from backend.app.services.jd_scraper import JobDescriptionScraper, JDScraperError
+    # Test invalid schemes
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("ftp://example.com/job")
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("file:///etc/passwd")
+
+    # Test SSRF block on localhost and private networks
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("http://localhost:8000/api")
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("http://127.0.0.1:8000")
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("http://192.168.1.50/job")
+    with pytest.raises(JDScraperError):
+        JobDescriptionScraper.validate_url("http://10.0.0.1/admin")
+
+
+def test_jd_scraper_json_ld_extraction():
+    from bs4 import BeautifulSoup
+    from backend.app.services.jd_scraper import JobDescriptionScraper
+
+    mock_html = """
+    <html>
+    <head>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org/",
+      "@type": "JobPosting",
+      "title": "Principal Distributed Systems Engineer",
+      "hiringOrganization": { "@type": "Organization", "name": "Stripe" },
+      "description": "<p>We are seeking a Principal Engineer to lead our core transaction infrastructure.</p><ul><li>10+ years backend engineering</li><li>Go, Python, and distributed DBs</li><li>High-throughput systems architecture</li></ul>"
+    }
+    </script>
+    </head>
+    <body><h1>Stripe Careers</h1></body>
+    </html>
+    """
+    soup = BeautifulSoup(mock_html, "html.parser")
+    result = JobDescriptionScraper.extract_from_json_ld(soup)
+    assert result is not None
+    assert result["title"] == "Principal Distributed Systems Engineer"
+    assert result["company"] == "Stripe"
+    assert "transaction infrastructure" in result["jd_text"]
+    assert "- 10+ years backend engineering" in result["jd_text"]
+
+
+def test_jd_scraper_dom_selectors():
+    from bs4 import BeautifulSoup
+    from backend.app.services.jd_scraper import JobDescriptionScraper
+
+    greenhouse_html = """
+    <div id="header">
+      <h1 class="app-title">Lead Site Reliability Engineer</h1>
+      <span class="company-name">at Datadog</span>
+    </div>
+    <div id="content">
+      <p>Datadog is building world-class monitoring software.</p>
+      <h3>Requirements</h3>
+      <ul>
+        <li>Extensive experience with Kubernetes and Linux internals</li>
+        <li>Proficiency in Python or Go</li>
+      </ul>
+    </div>
+    """
+    soup = BeautifulSoup(greenhouse_html, "html.parser")
+    res = JobDescriptionScraper.extract_from_specialized_selectors(soup, "https://boards.greenhouse.io/datadog/jobs/123")
+    assert res is not None
+    assert "Lead Site Reliability Engineer" in res["title"]
+    assert "Datadog" in res["company"]
+    assert "Kubernetes and Linux" in res["jd_text"]
+
