@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage';
 import AnalysisPage from './pages/AnalysisPage';
 import EditorPage from './pages/EditorPage';
 import HistoryPage from './pages/HistoryPage';
+import InterviewPrepPage from './pages/InterviewPrepPage';
 import { ResumeProvider } from './hooks/useResume';
 import { ToastProvider } from './components/Toast';
 
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/editor" element={<EditorPage />} />
                 <Route path="/history" element={<HistoryPage />} />
+                <Route path="/interview-prep" element={<InterviewPrepPage />} />
               </Routes>
             </main>
             <Footer />

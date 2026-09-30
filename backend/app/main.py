@@ -9,7 +9,7 @@ from backend.app.utils.logger import logger
 from backend.app.api.resume_routes import router as resume_router
 from backend.app.api.analysis_routes import router as analysis_router
 from backend.app.api.history_routes import router as history_router
-
+from backend.app.api.interview_routes import router as interview_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -107,3 +107,4 @@ def health_check():
 app.include_router(resume_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
+app.include_router(interview_router, prefix="/api")

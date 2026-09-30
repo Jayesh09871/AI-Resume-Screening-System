@@ -106,6 +106,17 @@ export const api = {
     return res.data;
   },
 
+   // Interview Preparation
+generateInterviewPrep: async (payload) => {
+    const response = await apiClient.post(
+        '/interview-prep',
+        payload,
+        { timeout: 120000 }
+    );
+
+    return response.data;
+},
+
   // History
   getHistory: async () => {
     const res = await apiClient.get('/history');
@@ -118,4 +129,6 @@ export const api = {
   },
 };
 
+console.log("API MODULE LOADED:", Object.keys(api));
+console.log("INTERVIEW PREP METHOD:", typeof api.generateInterviewPrep);
 export default api;

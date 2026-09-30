@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  FileText, 
-  Upload, 
-  BarChart3, 
-  Edit3, 
-  History, 
-  Sparkles, 
-  CheckCircle2, 
-  AlertCircle 
+import {
+  FileText,
+  Upload,
+  BarChart3,
+  Edit3,
+  History,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  BookOpen,
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -31,6 +32,7 @@ export default function Navbar() {
     { name: 'Upload', path: '/upload', icon: Upload },
     { name: 'Analysis', path: '/analysis', icon: Sparkles },
     { name: 'Resume Editor', path: '/editor', icon: Edit3 },
+    { name: 'Interview Prep', path: '/interview-prep', icon: BookOpen },
     { name: 'History', path: '/history', icon: History },
   ];
 
@@ -58,6 +60,7 @@ export default function Navbar() {
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = location.pathname === link.path;
+
             return (
               <Link
                 key={link.path}
