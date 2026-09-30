@@ -9,6 +9,9 @@ from backend.app.services.llm_provider import get_llm_provider
 
 router = APIRouter(tags=["Interview Preparation"])
 
+TECHNICAL_REQUIRED = 5
+BEHAVIORAL_REQUIRED = 3
+
 
 class InterviewPrepRequest(BaseModel):
     resume_id: int | None = None
@@ -45,6 +48,60 @@ def parse_ai_json(result):
     return data
 
 
+def call_ai(provider, prompt):
+    """Call the configured LLM and parse its JSON response."""
+
+    result = provider.complete(
+        prompt=prompt,
+        system_message=(
+            "You are an interview preparation assistant. "
+            "Return valid JSON only. Follow the requested counts exactly. "
+            "Do not invent candidate experiences or qualifications."
+        ),
+        response_format_json=True
+    )
+
+    return parse_ai_json(result)
+
+
+def is_valid_question(item):
+    """Check whether a generated question has all required fields."""
+
+    if not isinstance(item, dict):
+        return False
+
+    for field in ("question", "suggested_answer", "tips"):
+        if not isinstance(item.get(field), str) or not item[field].strip():
+            return False
+
+    return True
+
+
+def clean_questions(items):
+    """Keep only well-formed question objects."""
+
+    if not isinstance(items, list):
+        return []
+
+    cleaned = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        # Convert list-based tips into readable text.
+        if isinstance(item.get("tips"), list):
+            item = item.copy()
+            item["tips"] = "\n".join(
+                f"• {tip}" for tip in item["tips"]
+            )
+
+        if is_valid_question(item):
+            cleaned.append(item)
+
+    return cleaned
+
+
 def generate_questions(provider, resume, jd_text):
 
     prompt = f"""
@@ -57,119 +114,165 @@ RESUME:
 JOB DESCRIPTION:
 {jd_text}
 
-STRICT OUTPUT REQUIREMENTS:
+Generate exactly:
+- 5 technical questions
+- 3 behavioral questions
 
-Generate exactly 5 technical questions and exactly 3 behavioral questions.
+Technical questions should cover relevant skills, projects, technologies,
+and concepts from the job description.
 
-Technical questions:
-- Focus on skills, projects, technologies and concepts relevant to the JD.
-- Personalize questions using the resume wherever possible.
+Behavioral questions should cover teamwork, problem solving, challenges,
+and project experience.
 
-Behavioral questions:
-- Focus on teamwork, problem solving, challenges and project experience.
-- Do not invent candidate experiences.
+Do not invent candidate experiences. When personal details are unavailable,
+write suggested answers as adaptable examples rather than claiming the
+candidate has done something.
 
 Every question must contain:
-1. question: a string
-2. suggested_answer: a concise, useful sample answer
-3. tips: a short string containing 1-2 preparation tips
+- question: string
+- suggested_answer: string
+- tips: string
 
-Keep suggested answers concise to avoid unnecessarily long output.
+Keep answers concise.
 
-Return ONLY valid JSON in this exact structure:
+Return ONLY valid JSON in this structure:
 
 {{
   "technical_questions": [
     {{
-      "question": "Technical question 1",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Technical question 2",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Technical question 3",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Technical question 4",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Technical question 5",
+      "question": "Question",
       "suggested_answer": "Concise sample answer",
       "tips": "Preparation tip"
     }}
   ],
   "behavioral_questions": [
     {{
-      "question": "Behavioral question 1",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Behavioral question 2",
-      "suggested_answer": "Concise sample answer",
-      "tips": "Preparation tip"
-    }},
-    {{
-      "question": "Behavioral question 3",
+      "question": "Question",
       "suggested_answer": "Concise sample answer",
       "tips": "Preparation tip"
     }}
   ]
 }}
+
+The technical_questions array must contain exactly 5 objects.
+The behavioral_questions array must contain exactly 3 objects.
 """
 
-    result = provider.complete(
-        prompt=prompt,
-        system_message=(
-            "You are an interview preparation assistant. "
-            "Return valid JSON only. Generate exactly 5 technical "
-            "and 3 behavioral questions. Keep answers concise."
-        ),
-        response_format_json=True
+    data = call_ai(provider, prompt)
+
+    technical = clean_questions(data.get("technical_questions"))
+    behavioral = clean_questions(data.get("behavioral_questions"))
+
+    print(
+        "INITIAL INTERVIEW PREP COUNTS:",
+        "Technical =", len(technical),
+        "Behavioral =", len(behavioral)
     )
 
-    data = parse_ai_json(result)
+    # Retry by requesting only the missing questions.
+    for attempt in range(1, 3):
 
-    technical = data.get("technical_questions")
-    behavioral = data.get("behavioral_questions")
-
-    if not isinstance(technical, list) or len(technical) != 5:
-        raise ValueError(
-            "The AI did not generate exactly 5 technical questions."
+        missing_technical = max(
+            0, TECHNICAL_REQUIRED - len(technical)
         )
 
-    if not isinstance(behavioral, list) or len(behavioral) != 3:
-        raise ValueError(
-            "The AI did not generate exactly 3 behavioral questions."
+        missing_behavioral = max(
+            0, BEHAVIORAL_REQUIRED - len(behavioral)
         )
 
-    for section in (technical, behavioral):
-        for item in section:
+        if missing_technical == 0 and missing_behavioral == 0:
+            break
 
-            if not isinstance(item, dict):
-                raise ValueError("Invalid question object generated.")
+        retry_prompt = f"""
+We are completing an interview preparation response.
 
-            for field in ("question", "suggested_answer", "tips"):
-                if not item.get(field):
-                    raise ValueError(
-                        f"Generated question is missing '{field}'."
-                    )
+RESUME:
+{json.dumps(resume, ensure_ascii=False)}
 
-            if isinstance(item["tips"], list):
-                item["tips"] = "\n".join(
-                    f"• {tip}" for tip in item["tips"]
-                )
+JOB DESCRIPTION:
+{jd_text}
 
-            if not isinstance(item["tips"], str):
-                raise ValueError("Question tips must be text.")
+Generate ONLY the missing questions.
+
+Missing technical questions: {missing_technical}
+Missing behavioral questions: {missing_behavioral}
+
+Do not repeat these existing questions:
+
+TECHNICAL:
+{json.dumps(technical, ensure_ascii=False)}
+
+BEHAVIORAL:
+{json.dumps(behavioral, ensure_ascii=False)}
+
+Each generated question must contain:
+- question: string
+- suggested_answer: string
+- tips: string
+
+Do not invent candidate experiences. Keep answers concise.
+
+Return ONLY valid JSON in this exact structure:
+
+{{
+  "technical_questions": [],
+  "behavioral_questions": []
+}}
+
+The technical_questions array must contain exactly
+{missing_technical} new questions.
+
+The behavioral_questions array must contain exactly
+{missing_behavioral} new questions.
+"""
+
+        print(
+            f"INTERVIEW PREP RETRY {attempt}:",
+            "Missing technical =", missing_technical,
+            "Missing behavioral =", missing_behavioral
+        )
+
+        try:
+            retry_data = call_ai(provider, retry_prompt)
+
+            new_technical = clean_questions(
+                retry_data.get("technical_questions")
+            )
+
+            new_behavioral = clean_questions(
+                retry_data.get("behavioral_questions")
+            )
+
+            technical.extend(new_technical)
+            behavioral.extend(new_behavioral)
+
+            # Do not keep extra questions.
+            technical = technical[:TECHNICAL_REQUIRED]
+            behavioral = behavioral[:BEHAVIORAL_REQUIRED]
+
+        except Exception as retry_error:
+            print(
+                f"INTERVIEW PREP RETRY {attempt} ERROR:",
+                str(retry_error)
+            )
+
+    print(
+        "FINAL INTERVIEW PREP COUNTS:",
+        "Technical =", len(technical),
+        "Behavioral =", len(behavioral)
+    )
+
+    if len(technical) != TECHNICAL_REQUIRED:
+        raise ValueError(
+            "Unable to generate exactly 5 valid technical questions. "
+            "Please try again."
+        )
+
+    if len(behavioral) != BEHAVIORAL_REQUIRED:
+        raise ValueError(
+            "Unable to generate exactly 3 valid behavioral questions. "
+            "Please try again."
+        )
 
     return technical, behavioral
 

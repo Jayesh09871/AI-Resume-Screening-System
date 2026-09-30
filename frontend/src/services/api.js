@@ -106,17 +106,16 @@ export const api = {
     return res.data;
   },
 
-    // Interview Preparation
-  generateInterviewPrep: async ({ resumeId, resumeData, jdText }) => {
-    const payload = {
-      resume_id: resumeId || null,
-      resume_data: resumeData || null,
-      jd_text: jdText,
-    };
+   // Interview Preparation
+generateInterviewPrep: async (payload) => {
+    const response = await apiClient.post(
+        '/interview-prep',
+        payload,
+        { timeout: 120000 }
+    );
 
-    const res = await apiClient.post('/interview-prep', payload);
-    return res.data;
-  },
+    return response.data;
+},
 
   // History
   getHistory: async () => {

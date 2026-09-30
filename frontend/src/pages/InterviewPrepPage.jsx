@@ -46,9 +46,9 @@ export default function InterviewPrepPage() {
 
     try {
       const result = await api.generateInterviewPrep({
-        resumeId: currentResume?.id,
-        resumeData,
-        jdText: jdText.trim(),
+      resume_id: currentResume?.id || null,
+      resume_data: resumeData || null,
+      jd_text: jdText.trim(),
       });
 
       setQuestions(result);
