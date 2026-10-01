@@ -18,7 +18,8 @@ import {
   Edit3,
   Clock,
   ExternalLink,
-  Wand2
+  Wand2,
+  Trash2
 } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
 
@@ -30,7 +31,9 @@ export default function Dashboard() {
     setCurrentResume, 
     setCurrentAnalysis, 
     setCurrentJd,
-    baseAtsScore 
+    baseAtsScore,
+    clearResume,
+    clearIfActive
   } = useResume();
   const { addToast } = useToast();
   const [historyItems, setHistoryItems] = useState([]);
@@ -45,10 +48,46 @@ export default function Dashboard() {
     try {
       const data = await api.getHistory();
       setHistoryItems(data);
+
+      // Verify active resume still exists on backend if it has an ID
+      if (currentResume?.id) {
+        try {
+          await api.getResume(currentResume.id);
+        } catch (resumeErr) {
+          if (resumeErr.response?.status === 404 || resumeErr.status === 404) {
+            console.warn('Active resume was deleted on server, clearing dashboard state.');
+            clearResume();
+            return;
+          }
+        }
+      }
+
+      // If active analysis was deleted from history, clear it
+      if (currentAnalysis) {
+        const activeAnalysisId = currentAnalysis.id || currentAnalysis.analysis_id;
+        if (activeAnalysisId && !data.some((item) => item.id === activeAnalysisId)) {
+          setCurrentAnalysis(null);
+        }
+      }
     } catch (err) {
       console.error('Failed to load history:', err);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const handleDeleteHistory = async (historyId, resumeId, e) => {
+    e.stopPropagation();
+    try {
+      await api.deleteHistoryItem(historyId);
+      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
+      clearIfActive(historyId, resumeId);
+      if (historyItems.length <= 1) {
+        clearResume();
+      }
+      addToast('Screening record and resume removed.', 'info');
+    } catch (err) {
+      addToast(`Delete failed: ${err.message}`, 'error');
     }
   };
 
@@ -292,13 +331,23 @@ export default function Dashboard() {
                     <td className="py-3 text-emerald-400 font-medium">{item.matched_skills_count} skills</td>
                     <td className="py-3 text-slate-500">{formatDate(item.created_at)}</td>
                     <td className="py-3 text-right">
-                      <button
-                        onClick={() => loadPastAnalysis(item)}
-                        className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center space-x-1"
-                      >
-                        <span>View</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center justify-end space-x-3">
+                        <button
+                          onClick={() => loadPastAnalysis(item)}
+                          className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center space-x-1"
+                          title="View Analysis"
+                        >
+                          <span>View</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteHistory(item.id, item.resume_id, e)}
+                          className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                          title="Delete from history"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
