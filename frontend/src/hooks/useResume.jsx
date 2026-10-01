@@ -108,6 +108,38 @@ export function ResumeProvider({ children }) {
     }));
   };
 
+  const clearResume = () => {
+    setCurrentResume(null);
+    setCurrentAnalysis(null);
+    setBaseAtsScore(null);
+    setCurrentJd('');
+    localStorage.removeItem('currentResume');
+    localStorage.removeItem('currentAnalysis');
+    localStorage.removeItem('baseAtsScore');
+    localStorage.removeItem('currentJd');
+  };
+
+  const clearIfActive = (analysisId, resumeId) => {
+    const isMatchingAnalysis = Boolean(
+      analysisId && currentAnalysis && (
+        currentAnalysis.id === analysisId ||
+        currentAnalysis.analysis_id === analysisId
+      )
+    );
+    const isMatchingResume = Boolean(
+      resumeId && currentResume && (
+        currentResume.id === resumeId ||
+        currentResume.resume_id === resumeId
+      )
+    );
+
+    if (isMatchingAnalysis || isMatchingResume) {
+      clearResume();
+      return true;
+    }
+    return false;
+  };
+
   return (
     <ResumeContext.Provider
       value={{
@@ -115,6 +147,8 @@ export function ResumeProvider({ children }) {
         setCurrentResume,
         setResumeData,
         updateStructuredResume,
+        clearResume,
+        clearIfActive,
         currentJd,
         setCurrentJd,
         currentAnalysis,

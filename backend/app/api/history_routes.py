@@ -38,10 +38,24 @@ def get_analysis_history(db: Session = Depends(get_db)):
 
 @router.delete("/{analysis_id}")
 def delete_analysis_record(analysis_id: int, db: Session = Depends(get_db)):
-    """Delete an analysis record from history."""
+    """Delete an analysis record and its associated resume from history."""
     analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis record not found.")
-    db.delete(analysis)
+
+    resume_id = analysis.resume_id
+    resume = db.query(Resume).filter(Resume.id == resume_id).first() if resume_id else None
+
+    if resume:
+        # Cascade-deletes analysis, resume_versions, and the resume itself
+        db.delete(resume)
+    else:
+        db.delete(analysis)
+
     db.commit()
-    return {"message": "Analysis deleted from history."}
+    return {
+        "message": "Analysis and associated resume deleted from history.",
+        "analysis_id": analysis_id,
+        "resume_id": resume_id,
+    }
+

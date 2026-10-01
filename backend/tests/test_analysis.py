@@ -103,6 +103,17 @@ def test_api_resume_upload_and_lifecycle(client, sample_pdf_bytes):
     assert hist_res.status_code == 200
     assert len(hist_res.json()) >= 1
 
+    # 7. Delete from history and verify cascade delete of resume
+    analysis_id = analysis_data["analysis_id"]
+    del_hist = client.delete(f"/api/history/{analysis_id}")
+    assert del_hist.status_code == 200
+    assert del_hist.json()["analysis_id"] == analysis_id
+
+    # Verify resume is no longer found in backend
+    res_after_delete = client.get(f"/api/resumes/{resume_id}")
+    assert res_after_delete.status_code == 404
+
+
 
 def test_resume_quality_scorer(sample_resume_model):
     from backend.app.services.resume_quality_scorer import ResumeQualityScorer

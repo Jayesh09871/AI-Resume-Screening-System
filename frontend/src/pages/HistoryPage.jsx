@@ -17,7 +17,7 @@ import {
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-  const { setCurrentResume, setCurrentAnalysis } = useResume();
+  const { setCurrentResume, setCurrentAnalysis, clearIfActive, clearResume } = useResume();
   const { addToast } = useToast();
   const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,13 +60,26 @@ export default function HistoryPage() {
   const handleDelete = async (id, e) => {
     e.stopPropagation();
     try {
+      const itemToDelete = historyItems.find((item) => item.id === id);
       await api.deleteHistoryItem(id);
       setHistoryItems((prev) => prev.filter((item) => item.id !== id));
-      addToast('Analysis record deleted.', 'info');
+
+      if (itemToDelete) {
+        clearIfActive(itemToDelete.id, itemToDelete.resume_id);
+      } else {
+        clearIfActive(id, null);
+      }
+
+      if (historyItems.length <= 1) {
+        clearResume();
+      }
+
+      addToast('Resume and analysis deleted from history.', 'info');
     } catch (err) {
       addToast(`Delete failed: ${err.message}`, 'error');
     }
   };
+
 
   return (
     <div className="max-w-7xl mx-auto py-10 px-4 space-y-8">
