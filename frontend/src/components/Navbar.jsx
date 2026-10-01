@@ -57,7 +57,7 @@ export default function Navbar() {
                 PRO
               </span>
             </div>
-            <p className="hidden xl:block text-[11px] text-slate-400 mt-0.5 leading-none">Screening & ATS Builder</p>
+            <p className="hidden xl:block text-[11px] text-slate-400 mt-0.5 leading-none">AI Resume Analyzer</p>
           </div>
         </Link>
 
@@ -71,11 +71,10 @@ export default function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap ${
-                  isActive
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap ${isActive
                     ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/30'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{link.name}</span>
@@ -145,11 +144,10 @@ export default function Navbar() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                    isActive
+                  className={`flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${isActive
                       ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                       : 'text-slate-300 hover:text-white hover:bg-slate-900 border border-slate-800/60'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4 shrink-0 text-indigo-400" />
                   <span>{link.name}</span>
