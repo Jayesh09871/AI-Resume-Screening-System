@@ -74,13 +74,58 @@ class ATSScorer:
 
         # 2. Experience Relevance
         experience_relevance = self.calculate_experience_relevance(resume, jd)
+        exp_count = len(resume.experience)
+        role_titles = [e.title for e in resume.experience if e.title]
+        exp_status = "Strong Match" if experience_relevance >= 75 else "Moderate Match" if experience_relevance >= 45 else "Emerging / Limited"
+        experience_match = {
+            "score": experience_relevance,
+            "status": exp_status,
+            "roles_count": exp_count,
+            "recent_titles": role_titles[:3],
+            "summary": (
+                f"Candidate has {exp_count} documented role(s)"
+                + (f" ({', '.join(role_titles[:2])})" if role_titles else "")
+                + f" with {experience_relevance}% relevance to {jd.title or 'the target position'}."
+            ),
+        }
 
-        # 3. Semantic Similarity via sentence-transformers
+        # 3. Education Match
+        degrees = [e.degree for e in resume.education if e.degree]
+        institutions = [e.institution for e in resume.education if e.institution]
+        jd_edu = " ".join(jd.education_requirements).lower() if jd.education_requirements else ""
+        has_stem_degree = any(
+            any(kw in d.lower() for kw in ["computer", "software", "engineering", "science", "information", "technology", "math", "bachelor", "master", "b.tech", "b.e", "bs", "ms"])
+            for d in degrees
+        )
+        if degrees:
+            if not jd_edu or has_stem_degree or any(d.lower() in jd_edu for d in degrees):
+                edu_status = "Matched"
+                edu_score = 90
+                edu_summary = f"Educational qualification ({', '.join(degrees[:2])}) aligns with role requirements."
+            else:
+                edu_status = "Partially Matched"
+                edu_score = 70
+                edu_summary = f"Candidate holds {', '.join(degrees[:2])}."
+        else:
+            edu_status = "Not Specified"
+            edu_score = 50
+            edu_summary = "No formal degree explicitly listed in resume."
+
+        education_match = {
+            "score": edu_score,
+            "status": edu_status,
+            "degrees": degrees,
+            "institutions": institutions[:2],
+            "summary": edu_summary,
+            "jd_requirements": jd.education_requirements[:3] if jd.education_requirements else ["Relevant degree or equivalent industry experience"],
+        }
+
+        # 4. Semantic Similarity via sentence-transformers
         semantic_res = self.semantic_matcher.match(resume, jd)
         semantic_similarity = semantic_res["semantic_score"]
         semantic_matches = semantic_res["semantic_matches"]
 
-        # 4. Weighted Formula
+        # 5. Weighted Formula
         # Required (40%), Preferred (15%), Experience (25%), Semantic (20%)
         overall = int(
             round(
@@ -91,6 +136,25 @@ class ATSScorer:
             )
         )
         overall = min(100, max(0, overall))
+
+        # 6. Generate Grounded Strengths against this JD
+        strengths: List[str] = []
+        if req_count > 0 and matched_req_count > 0:
+            strengths.append(f"Directly satisfies {matched_req_count} of {req_count} core mandatory skills specified in the job description.")
+        elif matched_req_count > 0:
+            strengths.append(f"Verified core competency in key skills: {', '.join(skill_res['matched_required_skills'][:4])}.")
+
+        if experience_relevance >= 60:
+            strengths.append(f"Substantial experience overlap ({experience_relevance}%) with {jd.title or 'the target position'} requirements.")
+
+        if semantic_similarity >= 60:
+            strengths.append(f"Strong semantic alignment ({semantic_similarity}%) between past bullet points and key job responsibilities.")
+
+        if skill_res["matched_preferred_skills"]:
+            strengths.append(f"Offers bonus preferred qualifications: {', '.join(skill_res['matched_preferred_skills'][:3])}.")
+
+        if len(strengths) == 0:
+            strengths.append("Foundational skills present; tailoring bullet points with specific job keywords will improve match rating.")
 
         breakdown = ATSScoreBreakdown(
             overall_score=overall,
@@ -103,11 +167,18 @@ class ATSScorer:
 
         return MatchResultSchema(
             breakdown=breakdown,
+            match_percentage=overall,
+            required_skills=jd.required_skills,
+            preferred_skills=jd.preferred_skills,
             matched_required_skills=skill_res["matched_required_skills"],
             missing_required_skills=skill_res["missing_required_skills"],
             matched_preferred_skills=skill_res["matched_preferred_skills"],
             missing_preferred_skills=skill_res["missing_preferred_skills"],
+            experience_match=experience_match,
+            education_match=education_match,
+            strengths=strengths,
             keywords_found=skill_res["keywords_found"],
             keywords_missing=skill_res["keywords_missing"],
             semantic_matches=semantic_matches,
         )
+

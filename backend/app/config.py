@@ -17,15 +17,15 @@ class Settings(BaseSettings):
     ]
 
     # Database
-    DATABASE_URL: str = "sqlite:///./app.db"
+    DATABASE_URL: str = ""
 
     # LLM Settings
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
     LLM_TEMPERATURE: float = 0.1
-    LLM_MAX_TOKENS: int = 1000
-    LLM_TIMEOUT_SECONDS: int = 45
+    LLM_MAX_TOKENS: int = 600
+    LLM_TIMEOUT_SECONDS: int = 15
 
     # Embeddings
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
@@ -50,7 +50,12 @@ class Settings(BaseSettings):
         return v
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "backend/.env"),
+        env_file=(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "backend/.env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"),
+            "backend/.env",
+            ".env",
+        ),
         env_file_encoding="utf-8",
         extra="ignore"
     )

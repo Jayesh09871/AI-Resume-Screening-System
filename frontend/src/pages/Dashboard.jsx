@@ -4,7 +4,6 @@ import { useResume } from '../hooks/useResume';
 import { api } from '../services/api';
 import { useToast } from '../components/Toast';
 import ScoreGauge from '../components/ScoreGauge';
-import BaseAtsScoreCard from '../components/BaseAtsScoreCard';
 import SkillBadge from '../components/SkillBadge';
 import { 
   FileText, 
@@ -152,14 +151,10 @@ export default function Dashboard() {
             <TrendingUp className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="text-2xl font-black text-white">
-            {breakdown 
-              ? `${breakdown.overall_score}%` 
-              : (baseAtsScore ? `${baseAtsScore.overall_score}%` : 'N/A')}
+            {breakdown ? `${breakdown.overall_score}%` : '--'}
           </div>
           <p className="text-[11px] text-slate-500">
-            {breakdown 
-              ? 'Target JD Match Score' 
-              : (baseAtsScore ? 'Baseline Resume Quality Score' : 'Upload resume to score')}
+            {breakdown ? 'Target JD Match Score' : 'Pending Job Description'}
           </p>
         </div>
 
@@ -169,10 +164,10 @@ export default function Dashboard() {
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-black text-emerald-400">
-            {matchData ? matchData.matched_required_skills.length : (currentResume?.data?.skills?.length || 0)}
+            {matchData ? matchData.matched_required_skills.length : '--'}
           </div>
           <p className="text-[11px] text-slate-500">
-            {matchData ? 'Core competencies verified' : 'Indexed candidate skills'}
+            {matchData ? 'Core competencies verified' : 'Pending Job Description'}
           </p>
         </div>
 
@@ -182,10 +177,10 @@ export default function Dashboard() {
             <XCircle className="w-4 h-4 text-rose-400" />
           </div>
           <div className="text-2xl font-black text-rose-400">
-            {matchData ? matchData.missing_required_skills.length : 0}
+            {matchData ? matchData.missing_required_skills.length : '--'}
           </div>
           <p className="text-[11px] text-slate-500">
-            {matchData ? 'Immediate tailoring gaps' : 'Run JD match to detect gaps'}
+            {matchData ? 'Immediate tailoring gaps' : 'Pending Job Description'}
           </p>
         </div>
 
@@ -195,10 +190,10 @@ export default function Dashboard() {
             <Sparkles className="w-4 h-4 text-purple-400" />
           </div>
           <div className="text-2xl font-black text-purple-400">
-            {currentAnalysis?.suggestions?.length || (baseAtsScore?.improvements?.length || 0)}
+            {currentAnalysis?.suggestions?.length || (breakdown ? 0 : '--')}
           </div>
           <p className="text-[11px] text-slate-500">
-            {currentAnalysis ? 'Tailoring tips for target role' : (baseAtsScore ? 'General resume tips' : 'Pending analysis')}
+            {currentAnalysis ? 'Tailoring tips for target role' : 'Pending Job Description'}
           </p>
         </div>
       </div>
@@ -256,32 +251,36 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      ) : baseAtsScore ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-              <span>Baseline Resume Health Overview</span>
-            </h3>
-            <Link
-              to="/analysis"
-              className="text-xs text-purple-400 hover:underline flex items-center space-x-1 font-semibold"
-            >
-              <span>Match Against a Target Job Description &rarr;</span>
-            </Link>
+      ) : currentResume ? (
+        <div className="glass-card rounded-2xl p-8 border border-slate-800 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+            <Sparkles className="w-6 h-6" />
           </div>
-
-          <BaseAtsScoreCard baseScore={baseAtsScore} />
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-base font-bold text-white">
+              Resume Ready: {currentResume.data?.name || currentResume.title || 'Loaded Resume'}
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Step 2 Required: Enter your target Job Description to generate ATS score, match percentage, skill gap breakdown, and interview prep questions.
+            </p>
+          </div>
+          <Link
+            to="/analysis"
+            className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/30 transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Enter Job Description & Analyze &rarr;</span>
+          </Link>
         </div>
       ) : (
         <div className="glass-card rounded-2xl p-10 border border-slate-800 text-center space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
-            <Sparkles className="w-7 h-7" />
+            <Upload className="w-7 h-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-base font-bold text-white">No Active Analysis Yet</h3>
+            <h3 className="text-base font-bold text-white">Step 1: Upload Resume</h3>
             <p className="text-xs text-slate-400">
-              Upload your resume to instantly see your baseline ATS score, or match against a job description.
+              Upload your resume in PDF or DOCX format, then enter a job description to screen your profile.
             </p>
           </div>
           <Link
@@ -289,7 +288,7 @@ export default function Dashboard() {
             className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Resume</span>
+            <span>Upload Resume Now</span>
           </Link>
         </div>
       )}

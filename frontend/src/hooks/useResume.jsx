@@ -63,10 +63,8 @@ export function ResumeProvider({ children }) {
       title,
       data: resumeData,
     });
-    if (baseScore) {
-      setBaseAtsScore(baseScore);
-    }
-    // Reset previous JD and JD analysis so old results don't show on a newly uploaded resume
+    // JD is mandatory first - do not store or show any ATS score until JD is analyzed
+    setBaseAtsScore(null);
     setCurrentJd('');
     setCurrentAnalysis(null);
   };
