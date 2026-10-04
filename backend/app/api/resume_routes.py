@@ -76,9 +76,7 @@ async def upload_resume(
     db.add(initial_version)
     db.commit()
 
-    # Compute baseline ATS score (No JD required)
-    base_score = ResumeQualityScorer.evaluate(structured_data)
-
+    # Do NOT compute ATS score before JD is provided (JD is mandatory first)
     return ResumeUploadResponse(
         resume_id=db_resume.id,
         raw_text=parsed_doc["raw_text"],
@@ -86,7 +84,7 @@ async def upload_resume(
         detected_sections=parsed_doc["detected_sections"],
         warnings=parsed_doc["warnings"],
         structured_data=structured_data,
-        base_ats_score=base_score,
+        base_ats_score=None,
     )
 
 

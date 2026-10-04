@@ -66,28 +66,22 @@ def test_api_resume_upload_and_lifecycle(client, sample_pdf_bytes):
     assert resume_id is not None
     assert upload_data["structured_data"]["email"] == "alex.morgan.fake@example.com"
 
-    assert "base_ats_score" in upload_data
-    assert upload_data["base_ats_score"]["overall_score"] > 0
-    assert upload_data["base_ats_score"]["section_score"] > 0
+    # JD Mandatory First: Do NOT generate ATS score on upload
+    assert upload_data.get("base_ats_score") is None
 
-    # 2. Retrieve Base Score Endpoint
-    base_res = client.get(f"/api/resumes/{resume_id}/base-score")
-    assert base_res.status_code == 200
-    assert base_res.json()["overall_score"] == upload_data["base_ats_score"]["overall_score"]
-
-    # 3. Retrieve
+    # 2. Retrieve
     get_res = client.get(f"/api/resumes/{resume_id}")
     assert get_res.status_code == 200
     assert get_res.json()["id"] == resume_id
 
-    # 4. Update
+    # 3. Update
     structured = upload_data["structured_data"]
     structured["summary"] = "Updated professional summary for testing."
     put_res = client.put(f"/api/resumes/{resume_id}", json={"structured_data": structured})
     assert put_res.status_code == 200
     assert put_res.json()["version"] == 2
 
-    # 5. Analyze
+    # 4. Analyze with Mandatory Job Description (Generates ATS & Match % based on JD)
     analyze_payload = {
         "resume_id": resume_id,
         "jd_text": "We need a Python and FastAPI engineer with PostgreSQL experience."
@@ -95,8 +89,33 @@ def test_api_resume_upload_and_lifecycle(client, sample_pdf_bytes):
     analyze_res = client.post("/api/analyze", json=analyze_payload)
     assert analyze_res.status_code == 200
     analysis_data = analyze_res.json()
-    assert analysis_data["match_data"]["breakdown"]["overall_score"] > 0
+    match_data = analysis_data["match_data"]
+    assert match_data["breakdown"]["overall_score"] > 0
+    assert match_data["match_percentage"] > 0
+    assert "experience_match" in match_data
+    assert "education_match" in match_data
+    assert "strengths" in match_data
+    assert "required_skills" in match_data
     assert len(analysis_data["suggestions"]) > 0
+
+    # 5. Fast Interview Preparation Generation based on Resume + JD
+    interview_payload = {
+        "resume_id": resume_id,
+        "resume_data": structured,
+        "jd_text": "We need a Python and FastAPI engineer with PostgreSQL experience.",
+        "matched_skills": match_data["matched_required_skills"],
+        "missing_skills": match_data["missing_required_skills"],
+        "target_role": "Python FastAPI Engineer",
+    }
+    interview_res = client.post("/api/interview-prep", json=interview_payload)
+    assert interview_res.status_code == 200
+    interview_data = interview_res.json()
+    assert len(interview_data["technical_questions"]) == 5
+    assert len(interview_data["behavioral_questions"]) == 3
+    for q in interview_data["technical_questions"] + interview_data["behavioral_questions"]:
+        assert "question" in q and len(q["question"]) > 0
+        assert "suggested_answer" in q and len(q["suggested_answer"]) > 0
+        assert "tips" in q and len(q["tips"]) > 0
 
     # 6. History
     hist_res = client.get("/api/history")

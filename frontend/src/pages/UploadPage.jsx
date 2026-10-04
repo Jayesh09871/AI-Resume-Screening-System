@@ -25,8 +25,7 @@ export default function UploadPage() {
     setResumeData(
       response.structured_data,
       response.resume_id,
-      response.structured_data?.name || `Resume #${response.resume_id}`,
-      response.base_ats_score
+      response.structured_data?.name || `Resume #${response.resume_id}`
     );
   };
 
@@ -152,34 +151,33 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* Baseline ATS Score Banner */}
-          {uploadResult.base_ats_score && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-black text-lg shrink-0">
-                  {uploadResult.base_ats_score.overall_score}%
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <span>Baseline Resume ATS Score Computed</span>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                      No JD Needed
-                    </span>
-                  </h4>
-                  <p className="text-xs text-slate-400">
-                    ATS section structure, contact details, action verbs, and skills analyzed.
-                  </p>
-                </div>
+          {/* Step 1 Complete / Next Step CTA */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-indigo-950/50 via-slate-900 to-purple-950/40 border border-indigo-500/30">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-black text-sm shrink-0">
+                Step 1
               </div>
-
-              <button
-                onClick={() => navigate('/analysis')}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors shrink-0"
-              >
-                View Full Score Breakdown &rarr;
-              </button>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center space-x-2">
+                  <span>Resume Extracted & Ready</span>
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                    Step 1 Done
+                  </span>
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Next: Enter your target Job Description in Step 2 to compute ATS match score, missing skills, and interview prep.
+                </p>
+              </div>
             </div>
-          )}
+
+            <button
+              onClick={() => navigate('/analysis')}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/30 flex items-center justify-center space-x-1.5 shrink-0"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Proceed to Step 2: Enter Job Description &rarr;</span>
+            </button>
+          </div>
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-800">
@@ -193,10 +191,10 @@ export default function UploadPage() {
 
             <button
               onClick={() => navigate('/analysis')}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-semibold flex items-center justify-center space-x-2 shadow-lg shadow-indigo-500/30 transition-all"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all"
             >
               <Sparkles className="w-4 h-4" />
-              <span>View ATS Score & Optional JD Match</span>
+              <span>Enter Job Description & Analyze</span>
             </button>
           </div>
         </div>

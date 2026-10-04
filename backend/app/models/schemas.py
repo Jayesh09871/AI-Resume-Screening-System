@@ -102,13 +102,20 @@ class EvidenceBasedSuggestion(BaseModel):
 
 class MatchResultSchema(BaseModel):
     breakdown: ATSScoreBreakdown
-    matched_required_skills: List[str]
-    missing_required_skills: List[str]
-    matched_preferred_skills: List[str]
-    missing_preferred_skills: List[str]
-    keywords_found: List[str]
-    keywords_missing: List[str]
-    semantic_matches: List[SemanticMatchItem]
+    match_percentage: int = Field(default=0, description="Resume-JD match percentage")
+    required_skills: List[str] = Field(default_factory=list, description="All required skills from JD")
+    preferred_skills: List[str] = Field(default_factory=list, description="All preferred skills from JD")
+    matched_required_skills: List[str] = Field(default_factory=list)
+    missing_required_skills: List[str] = Field(default_factory=list)
+    matched_preferred_skills: List[str] = Field(default_factory=list)
+    missing_preferred_skills: List[str] = Field(default_factory=list)
+    experience_match: Dict[str, Any] = Field(default_factory=dict, description="Experience relevance and alignment")
+    education_match: Dict[str, Any] = Field(default_factory=dict, description="Education relevance and match status")
+    strengths: List[str] = Field(default_factory=list, description="Key candidate strengths against this JD")
+    keywords_found: List[str] = Field(default_factory=list)
+    keywords_missing: List[str] = Field(default_factory=list)
+    semantic_matches: List[SemanticMatchItem] = Field(default_factory=list)
+
 
 
 class AnalyzeRequest(BaseModel):

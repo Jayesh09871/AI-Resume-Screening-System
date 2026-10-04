@@ -19,7 +19,7 @@ class BaseLLMProvider(ABC):
     """Abstract base class for all LLM providers (Groq, OpenAI, Anthropic, etc.)."""
 
     @abstractmethod
-    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True) -> str:
+    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True, max_tokens: Optional[int] = None) -> str:
         """Execute a completion with the LLM."""
         pass
 
@@ -67,12 +67,12 @@ class GroqLLMProvider(BaseLLMProvider):
             models_data = self.client.models.list().data
             model_ids = [m.id for m in models_data]
             preferred_order = [
-                "qwen/qwen3.8-27b",
+                "openai/gpt-oss-20b",
                 "llama-3.3-70b-versatile",
                 "llama-3.1-8b-instant",
-                "llama3-70b-8192",
                 "openai/gpt-oss-120b",
-                "openai/gpt-oss-20b",
+                "qwen/qwen3.8-27b",
+                "llama3-70b-8192",
             ]
             for p in preferred_order:
                 if p in model_ids:
@@ -84,14 +84,16 @@ class GroqLLMProvider(BaseLLMProvider):
             logger.warning(f"Failed to query available Groq models: {e}")
         return None
 
-    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True) -> str:
-        max_retries = 3
-        backoff_delay = 1.5
+    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True, max_tokens: Optional[int] = None) -> str:
+        max_retries = 2
+        backoff_delay = 0.5
 
         messages = []
         if system_message:
             messages.append({"role": "system", "content": system_message})
         messages.append({"role": "user", "content": prompt})
+
+        effective_max_tokens = max_tokens or settings.LLM_MAX_TOKENS
 
         for attempt in range(max_retries):
             start_time = time.time()
@@ -100,7 +102,7 @@ class GroqLLMProvider(BaseLLMProvider):
                     "model": self.model,
                     "messages": messages,
                     "temperature": settings.LLM_TEMPERATURE,
-                    "max_tokens": settings.LLM_MAX_TOKENS,
+                    "max_tokens": effective_max_tokens,
                 }
                 if response_format_json:
                     kwargs["response_format"] = {"type": "json_object"}
@@ -129,15 +131,16 @@ class GroqLLMProvider(BaseLLMProvider):
                     retry_count=attempt,
                     error=str(e)
                 )
-                if ("model_not_found" in err_str or "does not exist" in err_str or "404" in err_str) and attempt == 0:
+                # Auto-switch model on 404/not found or 429 rate limit
+                if (("model_not_found" in err_str or "does not exist" in err_str or "404" in err_str or "rate limit" in err_str or "429" in err_str) and attempt == 0):
                     fallback = self._find_fallback_model()
                     if fallback and fallback != self.model:
-                        logger.warning(f"Groq model '{self.model}' unavailable. Auto-switching to '{fallback}'.")
+                        logger.warning(f"Groq '{self.model}' issue ({e}). Fast auto-switching to '{fallback}'.")
                         self.model = fallback
                         continue
                 if attempt == max_retries - 1:
                     raise RuntimeError(f"Groq API call failed after {max_retries} attempts: {str(e)}")
-                time.sleep(backoff_delay * (2 ** attempt))
+                time.sleep(backoff_delay * (attempt + 1))
 
         return "{}"
 
@@ -207,31 +210,31 @@ Resume Text:
 
     def extract_job_description(self, jd_text: str) -> Dict[str, Any]:
         system_prompt = (
-            "You are an expert technical recruiter analyzing a Job Description. Extract requirements into JSON.\n"
-            "CRITICAL RULE: Do not make up non-existent requirements. Separate required (must-have) vs preferred (nice-to-have) skills."
+            "You are an expert technical recruiter analyzing a Job Description. "
+            "Extract requirements as a valid JSON object only. "
+            "Separate required (must-have) vs preferred (nice-to-have) skills."
         )
 
-        user_prompt = f"""
-Analyze this job description and output a JSON object with this exact structure:
+        user_prompt = f"""Extract requirements from this job description into JSON:
 {{
-  "title": "Job Title if found",
-  "company": "Company Name if found",
+  "title": "Job Title",
+  "company": "Company Name",
   "required_skills": ["Mandatory Skill 1", "Mandatory Skill 2"],
-  "preferred_skills": ["Preferred/Bonus Skill 1"],
+  "preferred_skills": ["Bonus Skill 1"],
   "technologies": ["Tools, frameworks, and platforms mentioned"],
   "responsibilities": ["Primary job duty 1", "Duty 2"],
-  "experience_requirements": ["e.g., 2+ years of backend development"],
-  "education_requirements": ["e.g., Bachelor's in CS or equivalent"],
+  "experience_requirements": ["e.g. 2+ years of backend development"],
+  "education_requirements": ["e.g. Bachelor's in CS or equivalent"],
   "keywords": ["Core industry/domain keywords"],
   "domain_terms": ["Industry specific terms, e.g. Fintech, Healthcare, SaaS"]
 }}
 
 Job Description Text:
 \"\"\"
-{jd_text[:12000]}
+{jd_text[:3500]}
 \"\"\"
 """
-        raw_json_str = self.complete(user_prompt, system_message=system_prompt, response_format_json=True)
+        raw_json_str = self.complete(user_prompt, system_message=system_prompt, response_format_json=True, max_tokens=400)
         return json.loads(raw_json_str)
 
     def generate_recommendations(
@@ -241,44 +244,35 @@ Job Description Text:
         match_data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         system_prompt = (
-            "You are an expert career consultant providing evidence-based resume suggestions.\n"
-            "STRICT RULES:\n"
-            "1. ONLY refer to experience, skills, and projects that ALREADY exist in the candidate's resume.\n"
-            "2. NEVER invent new employment, fake metrics (e.g. 'boosted by 45%'), unearned credentials, or technologies.\n"
-            "3. If a metric is missing, advise the candidate: 'Consider adding a measurable result if you achieved one.'\n"
-            "4. Provide direct evidence from the resume and the JD for every recommendation.\n"
+            "You are an expert career consultant providing evidence-based resume suggestions. "
+            "Output a JSON object with a 'suggestions' key containing 3-4 concise items. "
+            "Never invent employment or unearned credentials."
         )
 
-        user_prompt = f"""
-Generate actionable, evidence-based recommendations to tailor this resume for the target job description.
+        user_prompt = f"""Generate actionable recommendations to tailor this resume for the job description. Output a JSON object:
 
-Candidate Resume Overview:
-- Current Summary: {resume_data.get('summary', 'None provided')}
-- Extracted Skills: {resume_data.get('skills', [])[:20]}
-- Experience Sample: {[exp.get('title', '') + ' at ' + exp.get('company', '') + ': ' + ' '.join(exp.get('highlights', [])[:2]) for exp in resume_data.get('experience', [])[:3]]}
-- Projects Sample: {[p.get('name', '') + ' (' + ', '.join(p.get('technologies', [])) + ')' for p in resume_data.get('projects', [])[:3]]}
+Candidate Overview:
+- Summary: {resume_data.get('summary', 'None provided')}
+- Skills: {resume_data.get('skills', [])[:15]}
 
 Target Job Requirements:
 - Title: {jd_data.get('title', 'Not specified')}
-- Required Skills: {jd_data.get('required_skills', [])}
-- Preferred Skills: {jd_data.get('preferred_skills', [])}
-- Missing Required Skills: {match_data.get('missing_required_skills', [])}
-- Missing Preferred Skills: {match_data.get('missing_preferred_skills', [])}
+- Missing Skills: {match_data.get('missing_required_skills', [])[:4]}
 
-Output a JSON object with a "suggestions" key containing a list of 4-6 items:
+Output format:
 {{
   "suggestions": [
     {{
-      "category": "keyword | summary | experience_bullet | project | skill_priority",
-      "recommendation": "Specific action to take",
-      "reason": "Why this change helps alignment with this JD",
-      "resume_evidence": "Quote or reference to candidate's existing resume content",
-      "related_jd_requirement": "Quote or reference to the specific JD requirement"
+      "category": "keyword | summary | experience_bullet",
+      "recommendation": "1 sentence action to take",
+      "reason": "1 sentence why this helps alignment",
+      "resume_evidence": "Existing candidate skills or experience",
+      "related_jd_requirement": "Target job requirement"
     }}
   ]
 }}
 """
-        raw_json_str = self.complete(user_prompt, system_message=system_prompt, response_format_json=True)
+        raw_json_str = self.complete(user_prompt, system_message=system_prompt, response_format_json=True, max_tokens=400)
         parsed = json.loads(raw_json_str)
         return parsed.get("suggestions", [])
 
@@ -312,7 +306,7 @@ class RuleBasedNLPProvider(BaseLLMProvider):
     Ensures the application works deterministically without external API dependencies.
     """
 
-    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True) -> str:
+    def complete(self, prompt: str, system_message: str = "", response_format_json: bool = True, max_tokens: Optional[int] = None) -> str:
         return "{}"
 
     def extract_resume(self, resume_text: str, deterministic_meta: Dict[str, Any]) -> Dict[str, Any]:

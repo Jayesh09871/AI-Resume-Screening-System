@@ -66,20 +66,20 @@ The core philosophy of this project is that an ATS system must never be a simple
    - Candidate maintains full control: AI suggestions do not alter the resume without explicit user review.
    - Exports clean, machine-readable ATS PDFs with native vector text and clickable links.
 9. **Screening History & Version Tracking**
-   - Stores resumes, job descriptions, and past analysis reports in PostgreSQL (with zero-configuration SQLite local fallback).
+   - Stores resumes, job descriptions, and past analysis reports in PostgreSQL.
 
 ---
 
 ## 🛠️ Technology Stack
 
 | Layer | Technologies |
-|---|---|
+| --- | --- |
 | **Frontend** | React 19, Vite, Tailwind CSS v4, Axios, React Router v7, Lucide React |
 | **Backend** | Python 3.12, FastAPI, Uvicorn, Pydantic v2 |
 | **AI / NLP** | Groq API (`llama-3.3-70b-versatile`), `sentence-transformers` (`all-MiniLM-L6-v2`), PyTorch, NumPy |
 | **Document Processing** | PyMuPDF (`fitz`), `python-docx` |
 | **PDF Generation** | ReportLab |
-| **Database** | PostgreSQL 16 (production), SQLite 3 (local dev fallback), SQLAlchemy 2.0 |
+| **Database** | PostgreSQL 18, SQLAlchemy 2.0 |
 | **DevOps** | Docker, Docker Compose |
 
 ---
@@ -168,6 +168,7 @@ AI-Resume-Screening-System/
 ## ⚡ Quick Start Guide
 
 ### Prerequisites
+
 - Python 3.10+
 - Node.js 18+ and npm
 - (Optional) Docker & Docker Compose
@@ -178,6 +179,7 @@ AI-Resume-Screening-System/
 ### Local Development Setup
 
 #### 1. Backend Setup
+
 ```bash
 cd backend
 
@@ -195,10 +197,12 @@ cp .env.example .env
 # Run the FastAPI server
 uvicorn backend.app.main:app --reload --port 8000
 ```
-Backend API will be available at: **http://127.0.0.1:8000**
-Interactive Swagger Documentation: **http://127.0.0.1:8000/docs**
+
+Backend API will be available at: **<http://127.0.0.1:8000>**
+Interactive Swagger Documentation: **<http://127.0.0.1:8000/docs>**
 
 #### 2. Frontend Setup
+
 ```bash
 cd frontend
 
@@ -211,7 +215,8 @@ cp .env.example .env
 # Start Vite development server
 npm run dev
 ```
-Frontend will be available at: **http://localhost:5173**
+
+Frontend will be available at: **<http://localhost:5173>**
 
 ---
 
@@ -227,8 +232,8 @@ export GROQ_API_KEY="your-groq-key-here"
 docker-compose up --build
 ```
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
+- **Frontend**: <http://localhost:3000>
+- **Backend API**: <http://localhost:8000>
 - **PostgreSQL**: localhost:5432
 
 ---
@@ -243,6 +248,7 @@ python3 -m pytest backend/tests/ -v
 ```
 
 Test coverage includes:
+
 - `test_parser.py`: PDF & DOCX extraction, corrupted file rejection, file size limits, section detection.
 - `test_extraction.py`: Regex extraction (emails, phones, URLs), skill canonicalization, schema repair.
 - `test_matching.py`: Exact/alias skill matching, `SentenceTransformer` cosine similarity, ATS score constraints.
@@ -258,6 +264,7 @@ The compatibility score is calculated using an explainable weighted formula:
 $$\text{Overall Score} = (0.40 \times \text{Req}) + (0.25 \times \text{Exp}) + (0.20 \times \text{Sem}) + (0.15 \times \text{Pref})$$
 
 Where:
+
 - **$\text{Req}$ (Required Skill Score, 40%)**: Ratio of mandatory skills detected in resume via exact and alias matching.
 - **$\text{Exp}$ (Experience Relevance, 25%)**: Proximity of job titles, density of domain responsibilities, and work history duration.
 - **$\text{Sem}$ (Semantic Similarity, 20%)**: Average cosine similarity computed by `all-MiniLM-L6-v2` between JD responsibilities and resume highlight statements.

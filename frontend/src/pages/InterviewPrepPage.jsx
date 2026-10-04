@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Sparkles, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useResume } from '../hooks/useResume';
@@ -10,7 +9,7 @@ console.log("INTERVIEW PAGE API:", api);
 console.log("INTERVIEW PAGE METHOD:", typeof api.generateInterviewPrep);
 
 export default function InterviewPrepPage() {
-  const { currentResume, currentJd, setCurrentJd } = useResume();
+  const { currentResume, currentJd, setCurrentJd, currentAnalysis } = useResume();
   const { showToast } = useToast();
 
   const [jdText, setJdText] = useState(currentJd || '');
@@ -19,6 +18,12 @@ export default function InterviewPrepPage() {
   const [error, setError] = useState('');
 
   const resumeData = currentResume?.data;
+
+  useEffect(() => {
+    if (currentJd && !jdText) {
+      setJdText(currentJd);
+    }
+  }, [currentJd]);
 
   const handleGenerate = async () => {
     if (!resumeData && !currentResume?.id) {
@@ -46,9 +51,12 @@ export default function InterviewPrepPage() {
 
     try {
       const result = await api.generateInterviewPrep({
-      resume_id: currentResume?.id || null,
-      resume_data: resumeData || null,
-      jd_text: jdText.trim(),
+        resume_id: currentResume?.id || null,
+        resume_data: resumeData || null,
+        jd_text: jdText.trim(),
+        matched_skills: currentAnalysis?.match_data?.matched_required_skills || [],
+        missing_skills: currentAnalysis?.match_data?.missing_required_skills || [],
+        target_role: currentAnalysis?.match_data?.target_role || ''
       });
 
       setQuestions(result);
