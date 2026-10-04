@@ -1,5 +1,16 @@
+import sys
+import os
 import time
 from contextlib import asynccontextmanager
+
+# Ensure project root and backend directories are in sys.path for cloud deployment
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_dir = os.path.dirname(_current_dir)
+_project_root = os.path.dirname(_backend_dir)
+for _path in [_project_root, _backend_dir]:
+    if _path and _path not in sys.path:
+        sys.path.insert(0, _path)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
