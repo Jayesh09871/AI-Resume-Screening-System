@@ -18,9 +18,23 @@ def get_database_url() -> str:
     if not url:
         raise ValueError("DATABASE_URL is not set. Please configure DATABASE_URL in your .env or environment.")
 
-    # SQLAlchemy 1.4+ / 2.0 requires postgresql:// instead of legacy postgres://
+    # Determine installed PostgreSQL driver (+psycopg2 or +psycopg) for SQLAlchemy
+    driver = ""
+    try:
+        import psycopg2  # noqa: F401
+        driver = "+psycopg2"
+    except ImportError:
+        try:
+            import psycopg  # noqa: F401
+            driver = "+psycopg"
+        except ImportError:
+            driver = ""
+
+    # SQLAlchemy 1.4+ / 2.0+ / 2.1 requires postgresql:// and explicit driver if bare postgres://
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("postgres://", f"postgresql{driver}://", 1)
+    elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        url = url.replace("postgresql://", f"postgresql{driver}://", 1)
 
     # Render internal hostnames (e.g. dpg-xxxx-a with no dots) only resolve within Render's internal VPC.
     # When connecting from local development machines, route to the external Render hostname with sslmode=require.
