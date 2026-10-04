@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim() !== '')
+  ? import.meta.env.VITE_API_BASE_URL
+  : (import.meta.env.PROD ? 'https://ai-resume-screening-system-ta34.onrender.com/api' : '/api');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,10 +12,27 @@ const apiClient = axios.create({
   timeout: 60000,
 });
 
-// Interceptor for friendly error messages
+// Interceptor for friendly error messages and response validation
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Detect accidental HTML responses (e.g. index.html from SPA fallback rewrites)
+    if (
+      typeof response.data === 'string' &&
+      (response.data.trim().startsWith('<!doctype html') ||
+       response.data.trim().startsWith('<html'))
+    ) {
+      return Promise.reject(
+        new Error('Unexpected HTML response received from API server. Check backend routing and connectivity.')
+      );
+    }
+    return response;
+  },
   (error) => {
+    if (error.response?.status === 405) {
+      return Promise.reject(
+        new Error('405 Method Not Allowed: The API endpoint rejected this method. Check server route configurations.')
+      );
+    }
     const message =
       error.response?.data?.detail ||
       error.message ||
@@ -125,7 +144,7 @@ generateInterviewPrep: async (payload) => {
   // History
   getHistory: async () => {
     const res = await apiClient.get('/history');
-    return res.data;
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   deleteHistoryItem: async (id) => {

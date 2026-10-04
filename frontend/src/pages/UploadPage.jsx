@@ -66,7 +66,7 @@ export default function UploadPage() {
           </div>
 
           {/* Warnings if any */}
-          {uploadResult.warnings && uploadResult.warnings.length > 0 && (
+          {Array.isArray(uploadResult.warnings) && uploadResult.warnings.length > 0 && (
             <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs space-y-1">
               <div className="flex items-center space-x-1.5 font-semibold text-amber-400">
                 <AlertTriangle className="w-4 h-4" />
@@ -114,23 +114,25 @@ export default function UploadPage() {
           </div>
 
           {/* Detected Sections */}
-          <div>
-            <span className="text-xs font-semibold text-slate-400 block mb-2">Detected Sections:</span>
-            <div className="flex flex-wrap gap-2">
-              {uploadResult.detected_sections.map((sec) => (
-                <span
-                  key={sec}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 border border-slate-700/80 text-slate-200 flex items-center space-x-1"
-                >
-                  <Layers className="w-3 h-3 text-indigo-400" />
-                  <span>{sec}</span>
-                </span>
-              ))}
+          {Array.isArray(uploadResult.detected_sections) && uploadResult.detected_sections.length > 0 && (
+            <div>
+              <span className="text-xs font-semibold text-slate-400 block mb-2">Detected Sections:</span>
+              <div className="flex flex-wrap gap-2">
+                {uploadResult.detected_sections.map((sec) => (
+                  <span
+                    key={sec}
+                    className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 border border-slate-700/80 text-slate-200 flex items-center space-x-1"
+                  >
+                    <Layers className="w-3 h-3 text-indigo-400" />
+                    <span>{sec}</span>
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Skills preview */}
-          {uploadResult.structured_data?.skills && (
+          {Array.isArray(uploadResult.structured_data?.skills) && uploadResult.structured_data.skills.length > 0 && (
             <div>
               <span className="text-xs font-semibold text-slate-400 block mb-2">Extracted & Normalized Skills:</span>
               <div className="flex flex-wrap gap-1.5">

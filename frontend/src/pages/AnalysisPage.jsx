@@ -560,8 +560,11 @@ export default function AnalysisPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {(matchData.required_skills?.length ? matchData.required_skills : [...matchData.matched_required_skills, ...matchData.missing_required_skills]).map((skill) => {
-                  const isMatched = matchData.matched_required_skills.includes(skill);
+                {(Array.isArray(matchData.required_skills) && matchData.required_skills.length
+                  ? matchData.required_skills
+                  : [...(matchData.matched_required_skills || []), ...(matchData.missing_required_skills || [])]
+                ).map((skill) => {
+                  const isMatched = Array.isArray(matchData.matched_required_skills) && matchData.matched_required_skills.includes(skill);
                   return (
                     <span
                       key={skill}

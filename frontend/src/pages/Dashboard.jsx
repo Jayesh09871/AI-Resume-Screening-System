@@ -46,7 +46,8 @@ export default function Dashboard() {
     setLoadingHistory(true);
     try {
       const data = await api.getHistory();
-      setHistoryItems(data);
+      const items = Array.isArray(data) ? data : [];
+      setHistoryItems(items);
 
       // Verify active resume still exists on backend if it has an ID
       if (currentResume?.id) {
@@ -64,7 +65,7 @@ export default function Dashboard() {
       // If active analysis was deleted from history, clear it
       if (currentAnalysis) {
         const activeAnalysisId = currentAnalysis.id || currentAnalysis.analysis_id;
-        if (activeAnalysisId && !data.some((item) => item.id === activeAnalysisId)) {
+        if (activeAnalysisId && !items.some((item) => item.id === activeAnalysisId)) {
           setCurrentAnalysis(null);
         }
       }
@@ -81,7 +82,7 @@ export default function Dashboard() {
       await api.deleteHistoryItem(historyId);
       setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
       clearIfActive(historyId, resumeId);
-      if (historyItems.length <= 1) {
+      if ((Array.isArray(historyItems) ? historyItems.length : 0) <= 1) {
         clearResume();
       }
       addToast('Screening record and resume removed.', 'info');
@@ -227,7 +228,7 @@ export default function Dashboard() {
                 </Link>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {matchData.matched_required_skills.slice(0, 8).map((s) => (
+                {(Array.isArray(matchData.matched_required_skills) ? matchData.matched_required_skills : []).slice(0, 8).map((s) => (
                   <SkillBadge key={s} skill={s} status="matched" />
                 ))}
               </div>
@@ -244,7 +245,7 @@ export default function Dashboard() {
                 </Link>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {matchData.missing_required_skills.slice(0, 8).map((s) => (
+                {(Array.isArray(matchData.missing_required_skills) ? matchData.missing_required_skills : []).slice(0, 8).map((s) => (
                   <SkillBadge key={s} skill={s} status="missing_required" />
                 ))}
               </div>
@@ -306,7 +307,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {historyItems.length > 0 ? (
+        {Array.isArray(historyItems) && historyItems.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -320,7 +321,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {historyItems.slice(0, 5).map((item) => (
+                {(Array.isArray(historyItems) ? historyItems : []).slice(0, 5).map((item) => (
                   <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
                     <td className="py-3 font-medium text-slate-200">{item.resume_title}</td>
                     <td className="py-3 text-slate-300">{item.jd_title}</td>

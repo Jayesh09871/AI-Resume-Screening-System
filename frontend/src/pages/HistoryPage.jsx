@@ -30,7 +30,7 @@ export default function HistoryPage() {
     setLoading(true);
     try {
       const data = await api.getHistory();
-      setHistoryItems(data);
+      setHistoryItems(Array.isArray(data) ? data : []);
     } catch (err) {
       addToast(`Failed to load history: ${err.message}`, 'error');
     } finally {
@@ -94,7 +94,7 @@ export default function HistoryPage() {
         <div className="flex items-center justify-center py-20 text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin" />
         </div>
-      ) : historyItems.length === 0 ? (
+      ) : (!Array.isArray(historyItems) || historyItems.length === 0) ? (
         <div className="glass-card rounded-2xl p-12 text-center border border-slate-800 space-y-3">
           <History className="w-10 h-10 text-slate-600 mx-auto" />
           <h3 className="text-base font-bold text-white">No Previous Analyses</h3>
@@ -104,7 +104,7 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {historyItems.map((item) => (
+          {(Array.isArray(historyItems) ? historyItems : []).map((item) => (
             <div
               key={item.id}
               onClick={() => handleOpenAnalysis(item)}
