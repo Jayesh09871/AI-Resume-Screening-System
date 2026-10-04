@@ -12,6 +12,10 @@ _EMBEDDING_MODEL = None
 
 def get_embedding_model():
     global _EMBEDDING_MODEL
+    # Skip loading heavy PyTorch model in 512MB containers (Render Free Tier)
+    import os
+    if os.getenv("RENDER") or os.getenv("LOW_MEMORY_MODE", "false").lower() in ("true", "1"):
+        return None
     if _EMBEDDING_MODEL is None:
         try:
             from sentence_transformers import SentenceTransformer
@@ -141,8 +145,58 @@ class SemanticMatcher:
             except Exception as e:
                 logger.error(f"Error during semantic embedding matching: {e}")
 
-        # Fallback keyword overlap heuristic if model cannot be run
+        # Lightweight TF-IDF & Cosine Similarity Matcher
+        # Consumes < 5MB of RAM and computes in milliseconds (ideal for Render 512MB limit)
         fallback_matches = []
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity as sk_cosine_similarity
+
+            vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english")
+            corpus = targets + resume_sentences
+            tfidf_matrix = vectorizer.fit_transform(corpus)
+
+            target_vectors = tfidf_matrix[:len(targets)]
+            resume_vectors = tfidf_matrix[len(targets):]
+            sim_matrix = sk_cosine_similarity(target_vectors, resume_vectors)
+
+            scores_for_overall = []
+            for i, target in enumerate(targets):
+                sims = sim_matrix[i]
+                best_idx = int(np.argmax(sims))
+                raw_score = float(sims[best_idx])
+                calibrated_score = min(0.95, round(0.40 + (raw_score * 0.9), 3)) if raw_score > 0 else 0.35
+                best_evidence = resume_sentences[best_idx]
+
+                if calibrated_score >= 0.70:
+                    status = "strong"
+                elif calibrated_score >= 0.50:
+                    status = "moderate"
+                else:
+                    status = "weak"
+
+                clean_target = re.sub(r"^Requires proficiency in ", "", target)
+                fallback_matches.append(
+                    SemanticMatchItem(
+                        jd_requirement=clean_target,
+                        resume_evidence=best_evidence,
+                        similarity_score=calibrated_score,
+                        status=status,
+                    )
+                )
+                scores_for_overall.append(calibrated_score)
+
+            avg_sim = float(np.mean(scores_for_overall)) if scores_for_overall else 0.65
+            semantic_score = int(min(100, max(0, avg_sim * 100)))
+
+            return {
+                "semantic_matches": fallback_matches,
+                "semantic_score": semantic_score,
+            }
+        except Exception as e:
+            logger.warning(f"TF-IDF semantic matching error, using word overlap fallback: {e}")
+
+        # Fallback word-overlap heuristic if scikit-learn is unavailable
         for target in targets:
             target_words = set(re.findall(r"\w+", target.lower()))
             best_evidence = resume_sentences[0]

@@ -27,13 +27,14 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize DB tables
     logger.info("Initializing application and database...")
     init_db()
-    # Pre-warm embedding model so first screening request runs in <1s
-    try:
-        from backend.app.services.semantic_matcher import get_embedding_model
-        get_embedding_model()
-        logger.info("Embedding model pre-warmed successfully.")
-    except Exception as e:
-        logger.warning(f"Could not pre-warm embedding model: {e}")
+    # Pre-warm embedding model only in local dev if explicitly requested (disabled on Render to keep memory under 512Mi)
+    if not os.getenv("RENDER") and os.getenv("PREWARM_EMBEDDINGS", "false").lower() in ("true", "1"):
+        try:
+            from backend.app.services.semantic_matcher import get_embedding_model
+            get_embedding_model()
+            logger.info("Embedding model pre-warmed successfully.")
+        except Exception as e:
+            logger.warning(f"Could not pre-warm embedding model: {e}")
     yield
     # Shutdown
     logger.info("Application shutting down...")
